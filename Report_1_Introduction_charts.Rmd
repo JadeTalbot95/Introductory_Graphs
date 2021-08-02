@@ -165,7 +165,7 @@ Script reference: agevspsa graph.R
   
 ```{r}
 library(tidyverse)
-library(dbplyr)
+library(dplyr)
 library(ggplot2)
 
 samples <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
