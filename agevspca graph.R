@@ -4,11 +4,19 @@ library(tidyverse)
 library(dplyr)
 library(ggplot2)
 
-samples <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
+sample_mapping_PCD01_ALL <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
 
-remove.list.swath <- readLines('../PCD01_SWATH/Stoller_library/remove.list.txt')
+remove.list <- paste(paste(MS_Sample_processing_LOG_Repeats$Stoller_Sample_ID,"$", sep = ""),sep = "|", collapse = "|")
 
-samples <- samples[grep(remove.list.swath, samples$'Stoller_sample_ID', invert = T), ]
+samples <- samples[grep(remove.list, samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("Pre_Diagnosis", invert = T, fixed = T, samples$Collection_Type), ]
+
+samples <- samples[grep("Control_pool|Benign_pool_|Disease_pool_|QC", samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("PCD01-B*", samples$'Stoller_sample_ID', invert = T), ]
+
+agevspsa <- samples %>% select(`Age_at_Diagnosis`, PSA_at_Diagnosis, Gleason_Score)
 
 agevspsa$PSA_at_Diagnosis <- as.numeric(agevspsa$PSA_at_Diagnosis)
 agevspsa$Age_at_Diagnosis <- as.numeric(agevspsa$Age_at_Diagnosis)
@@ -96,3 +104,19 @@ ggplot(agevspsaNoNA, aes(x=(Gleason_Score) , y=Log_PSA)) +
   
 agevspsaNoNA$Gleason_Score <- as.numeric(agevspsaNoNA$Gleason_Score)
 gleasonscorevslogPSA_box <- lm(Gleason_Score~Log_PSA, agevspsaNoNA)
+
+ggplot(agevspsaNoNA, aes( , y=PSA_at_Diagnosis)) +
+  geom_boxplot() +
+  ggtitle("PSA at Prostate Cancer diagnosis") +
+  annotation_logticks(sides = "l") +
+  labs(y="PSA concentration (ng/mL)") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"),
+        aspect.ratio=1,
+        axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), 
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.3, size = 14, face = "bold")) +
+  scale_y_log10(limits = c(1,1000))

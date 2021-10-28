@@ -3,8 +3,8 @@ title: "Introduction charts"
 author: "Jade Talbot"
 date: "08/01/2021"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -18,6 +18,8 @@ How to plot charts in introduction to describe the cohort. Includes:
   + Distribution Pie Charts (Condition, Collection Type, and D'amico Risk Score)
   + Box plot of Age in each Condition
   + Age vs PSA Scatter Plot at Diagnosis with line of best fit
+  + Box plot of PSA at diagnosis
+  + Box plot of PSA vs Gleason Score
   
 #### Distribution of Conditions
 
@@ -30,6 +32,7 @@ PCA = #F5C12C
 
   + Load in packages
   + Load in mapping files
+  + Remove remove.list (Stoller repeat list), samples collected pre-diagnosis, batch and total pools
   + Create list/dataframe of selected condition
   + Print no. of each variable
 
@@ -41,11 +44,23 @@ library(scales)
 
 #load in mapping file
 
-samples <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
+sample_mapping_PCD01_ALL <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
 
-remove.list.swath <- readLines('../PCD01_SWATH/Stoller_library/remove.list.txt')
+MS_Sample_processing_LOG_Repeats <- read.csv('../PCD01_SWATH/PCD01_general/MS Sample processing LOG - Repeats.csv')
 
-samples <- samples[grep(remove.list.swath, samples$'Stoller_sample_ID', invert = T), ]
+samples <- sample_mapping_PCD01_ALL %>% select('Stoller_sample_ID', Condition, "D.amico.Risk.Score", Collection_Type, 'Age_.at_collection')
+
+remove.list <- paste(paste(MS_Sample_processing_LOG_Repeats$Stoller_Sample_ID,"$", sep = ""),sep = "|", collapse = "|")
+
+samples <- samples[grep(remove.list, samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("Pre_Diagnosis", invert = T, fixed = T, samples$Collection_Type), ]
+
+samples <- samples[grep("Control_pool|Benign_pool_|Disease_pool_|QC", samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("PCD01-B*", samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[complete.cases(samples$Condition), ]
 
 #Create dataframe of conditions
 condition <- samples$Condition
@@ -68,8 +83,8 @@ length(grep("PCA", condition))
 ```{r}
 condition <- data.frame(
   group = c("Benign", "Control", "Prostate Cancer"),
-  value = c(56, 168, 121),
-  percentage = c("16% (56)", "49% (168)", "35% (121)")
+  value = c(51, 167, 117),
+  percentage = c("15% (51)", "50% (167)", "35% (117)")
 )
 
 #visualise data
@@ -85,11 +100,12 @@ blank_theme <- theme_minimal()+
     panel.border = element_blank(),
     panel.grid=element_blank(),
     axis.ticks = element_blank(),
-    plot.title=element_text(size=10, face="bold", hjust = 0),
+    plot.title=element_text(size=20, face="bold", hjust = 0.5),
     legend.title = element_blank()
   )
 
 #pie chart
+
 pie <- bp + 
   coord_polar("y", start=0, direction = -1) +
   blank_theme +
@@ -117,16 +133,25 @@ PCA = #F5C12C
 #box plot of age at collection
 
 library(ggplot2)
+library(dplyr)
 
 #make data frame
 
-samples <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
+sample_mapping_PCD01_ALL <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
 
-remove.list.swath <- readLines('../PCD01_SWATH/Stoller_library/remove.list.txt')
+samples <- sample_mapping_PCD01_ALL %>% select('Stoller_sample_ID', Condition, "D.amico.Risk.Score", Collection_Type, 'Age_.at_collection')
 
-samples <- samples[grep(remove.list.swath, samples$'Stoller_sample_ID', invert = T), ]
+remove.list <- paste(paste(MS_Sample_processing_LOG_Repeats$Stoller_Sample_ID,"$", sep = ""),sep = "|", collapse = "|")
+
+samples <- samples[grep(remove.list, samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("Pre_Diagnosis", invert = T, fixed = T, samples$Collection_Type), ]
 
 samples <- samples[grep("Control_pool|Benign_pool_|Disease_pool_|QC", samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("PCD01-B*", samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[complete.cases(samples$Condition), ]
 
 age <- samples %>% select(Condition, Age_.at_collection)
 age <- age[complete.cases(age$Condition),]
@@ -162,23 +187,35 @@ Script reference: agevspsa graph.R
 
   + Load in packages
   + Load in mapping file
+  + Plot scatter of age vs PSA at diagnosis
+  + Plot scatter of Gleason Score vs PSA at diagnosis
+  + Plot box plot of Gleason Score vs PSA at diagnosis
+  + Plot box plot of PSA at diagnosis
   
 ```{r}
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
 
-samples <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
+sample_mapping_PCD01_ALL <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
 
-remove.list.swath <- readLines('../PCD01_SWATH/Stoller_library/remove.list.txt')
+remove.list <- paste(paste(MS_Sample_processing_LOG_Repeats$Stoller_Sample_ID,"$", sep = ""),sep = "|", collapse = "|")
 
-samples <- samples[grep(remove.list.swath, samples$'Stoller_sample_ID', invert = T), ]
+samples <- sample_mapping_PCD01_ALL
+
+samples <- samples[grep(remove.list, samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("Pre_Diagnosis", invert = T, fixed = T, samples$Collection_Type), ]
+
+samples <- samples[grep("Control_pool|Benign_pool_|Disease_pool_|QC", samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("PCD01-B*", samples$'Stoller_sample_ID', invert = T), ]
 ```
 
-  + Create dataframe, munipulate and format
+  + Create dataframe, manipulate and format
   
 ```{r}
-agevspsa <- samples %>% select(`Age_at_Diagnosis`, PSA_at_Diagnosis, Gleason_Score)
+agevspsa <- samples %>% select('Age_.at_collection', PSA_at_Diagnosis, Gleason_Score)
 ```
 
 
@@ -186,7 +223,7 @@ agevspsa <- samples %>% select(`Age_at_Diagnosis`, PSA_at_Diagnosis, Gleason_Sco
 #convert to numeric
 
 agevspsa$PSA_at_Diagnosis <- as.numeric(agevspsa$PSA_at_Diagnosis)
-agevspsa$Age_at_Diagnosis <- as.numeric(agevspsa$Age_at_Diagnosis)
+agevspsa$Age_at_Diagnosis <- as.numeric(agevspsa$'Age_.at_collection')
 agevspsa$Gleason_Score <- as.numeric(agevspsa$Gleason_Score)
 
 #log2 PSA
@@ -241,6 +278,7 @@ ggplot(agevspsaNoNA, aes(x=Gleason_Score, y=Log_PSA)) +
 
 gleasonscorevslogPSA_scatter <- lm(Gleason_Score~Log_PSA, agevspsaNoNA)
 ```
+ 
   + Remove NA's
   + Plot Boxplots of PSA at Diagnosis vs Gleason Score
   + Add line of best fit, print stats
@@ -271,6 +309,23 @@ ggplot(agevspsaNoNA, aes(x=(Gleason_Score) , y=Log_PSA)) +
 agevspsaNoNA$Gleason_Score <- as.numeric(agevspsaNoNA$Gleason_Score)
 gleasonscorevslogPSA_box <- lm(Gleason_Score~Log_PSA, agevspsaNoNA)
 ```
+```{r}
+ggplot(agevspsaNoNA, aes( , y=PSA_at_Diagnosis)) +
+  geom_boxplot() +
+  ggtitle("PSA at Prostate Cancer diagnosis") +
+  annotation_logticks(sides = "l") +
+  labs(y="PSA concentration (ng/mL)") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"),
+        aspect.ratio=1,
+        axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), 
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.3, size = 14, face = "bold")) +
+  scale_y_log10(limits = c(1,1000))
+```
 
   
 #### Distribution of Collection Type
@@ -278,9 +333,10 @@ gleasonscorevslogPSA_box <- lm(Gleason_Score~Log_PSA, agevspsaNoNA)
 Script reference: Condition_pie_chart.R
 
 COLOURS  
-PROSPECTIVE = #F95460  
-RETROSPECTIVE = #4CCA9D  
-NA = #989898  
+At_Diagnosis = #F95460  
+Control = #FEB24C  
+NA = #989898
+Post_Diagnosis = #4CCA9D  
 
   + Load in packages
   + Load in mapping file
@@ -297,11 +353,21 @@ library(scales)
 
 #load in mapping file
 
-samples <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
+sample_mapping_PCD01_ALL <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
 
-remove.list.swath <- readLines('../PCD01_SWATH/Stoller_library/remove.list.txt')
+samples <- sample_mapping_PCD01_ALL %>% select('Stoller_sample_ID', Condition, "D.amico.Risk.Score", Collection_Type, 'Age_.at_collection')
 
-samples <- samples[grep(remove.list.swath, samples$'Stoller_sample_ID', invert = T), ]
+remove.list <- paste(paste(MS_Sample_processing_LOG_Repeats$Stoller_Sample_ID,"$", sep = ""),sep = "|", collapse = "|")
+
+samples <- samples[grep(remove.list, samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("Pre_Diagnosis", invert = T, fixed = T, samples$Collection_Type), ]
+
+samples <- samples[grep("Control_pool|Benign_pool_|Disease_pool_|QC", samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("PCD01-B*", samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[complete.cases(samples$Condition), ]
 
 #Create list of conditions
 condition <- samples$Collection_Type
@@ -309,7 +375,8 @@ condition <- samples$Collection_Type
 #prints how many of each 
 length(grep("Post_Diagnosis", condition))
 length(grep("At_Diagnosis", condition))
-length(grep("NA", condition))
+length(grep("Control", condition))
+sum(is.na(samples$Collection_Type))
 ```
 
   + Input values into new data frame in relation to each variable, and the labels of the Pie Chart
@@ -322,9 +389,9 @@ length(grep("NA", condition))
     
 ```{r}
 condition <- data.frame(
-  group = c("Post Diagnosis", "At Diagnosis"),
-  value = c(29, 113),
-  percentage = c("20% (29)", "80% (113)")
+  group = c("Post Diagnosis", "At Diagnosis", "Control", "NA"),
+  value = c(115, 18, 165, 35),
+  percentage = c("35% (115)", "5% (18)", "50% (165)", "10% (35)")
 )
 
 #visualise data
@@ -332,6 +399,7 @@ bp <- ggplot(condition, aes(x="", y=value, fill=group))+
   geom_bar(width = 1, stat = "identity")
 bp
 ```
+
 ```{r}
 #blanktheme
 blank_theme <- theme_minimal()+
@@ -341,7 +409,7 @@ blank_theme <- theme_minimal()+
     panel.border = element_blank(),
     panel.grid=element_blank(),
     axis.ticks = element_blank(),
-    plot.title=element_text(size=10, face="bold", hjust = 0),
+    plot.title=element_text(size=20, face="bold", hjust = 0.5),
     legend.title = element_blank()
   )
 
@@ -351,99 +419,14 @@ pie <- bp +
   blank_theme +
   ggtitle("Distribution of Collection Type") +
   theme(axis.text.x=element_blank()) +
-  scale_fill_manual(values=c("#F95460", "#4CCA9D"), labels=c("Post Diagnosis", "At Diagnosis")) +
+  scale_fill_manual(values=c("#F95460", "#FEB24C","#4CCA9D", "#989898"), labels=c("At Diagnosis", "Control", "Post Diagnosis", "NA")) +
   geom_text(aes(label = percentage),position = position_stack(vjust = 0.5), fontface = "bold", color = "white", size=4)
 
 pie
 ```
-
-Distribution of Collection Type in *insert condition* samples  
-Script reference: Condition_pie_chart.R
-
-COLOURS  
-PROSPECTIVE = #F95460  
-RETROSPECTIVE = #4CCA9D  
-NA = #989898  
-
-  + Load in packages
-  + Load in mapping file
-  + Create dataframe of selected condition
-  + Print no. of each variable
-
-```{r}
-#Pie chart
-library(tidyverse)
-library(dplyr)
-library(ggplot2)
-library(scales)
-
-#load in mapping file
-
-samples <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
-
-remove.list.swath <- readLines('../PCD01_SWATH/Stoller_library/remove.list.txt')
-
-samples <- samples[grep(remove.list.swath, samples$'Stoller_sample_ID', invert = T), ]
-
-#Create dataframe of conditions
-#Create dataframe
-two_conditions <- samples %>% select(Condition, Collection_Type)
-two_conditions <- two_conditions[grep("PCA", two_conditions$Condition, invert = FALSE) , ]
-
-#prints how many of each 
-length(grep("Post_Diagnosis", two_conditions$Collection_Type))
-length(grep("At_Diagnosis", two_conditions$Collection_Type))
-length(grep("NA", two_conditions$Collection_Type))
-```
-
-  + Input values into new data frame in relation to each variable, and the labels of the Pie Chart
-  + Visualise on Bar Plot
-  + Create blank_theme
-    + Plot.title=element_text(size=) may need changing depending on amount of text in title
-  + Plot Pie Chart. Change
-    + ggtitle
-    + scale_fill_manual(values=c(
-
-```{r}
-condition <- data.frame(
-  group = c("Post Diagnosis", "At Diagnosis"),
-  value = c(18, 99),
-  percentage = c("15% (18)", "85% (99)")
-)
-
-#visualise data
-bp <- ggplot(condition, aes(x="", y=value, fill=group))+
-  geom_bar(width = 1, stat = "identity")
-bp
-```
-```{r}
-#blanktheme
-blank_theme <- theme_minimal()+
-  theme(
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank(),
-    panel.border = element_blank(),
-    panel.grid=element_blank(),
-    axis.ticks = element_blank(),
-    plot.title=element_text(size=10, face="bold", hjust = 0),
-    legend.title = element_blank()
-  )
-
-#pie chart
-pie <- bp + 
-  coord_polar("y", start=0, direction = -1) +
-  blank_theme +
-  ggtitle("Distribution of Collection Type in Prostate Cancer samples") +
-  theme(axis.text.x=element_blank()) +
-  scale_fill_manual(values=c("#F95460", "#4CCA9D"), labels=c("Post Diagnosis", "At Diagnosis")) +
-  geom_text(aes(label = percentage),position = position_stack(vjust = 0.5), fontface = "bold", color = "white", size=4)
-
-pie
-```
-
 #### Distribution of D'amico Risk Score's
 
-Distribution of D'amico Risk Score's in Prospective/Retrospective samples  
+Distribution of D'amico Risk Score's
 Script reference: Condition_pie_chart.R
 
 COLOURS
@@ -453,7 +436,6 @@ HIGH = #FDE0DD
 
   + Load in packages
   + Load in mapping file
-  + Create dataframe of selected collection type
   + Print no. of each variable
 
 ```{r}
@@ -462,20 +444,30 @@ library(dplyr)
 library(ggplot2)
 library(scales)
 
-samples <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
+sample_mapping_PCD01_ALL <- read.csv('../PCD01_SWATH/PCD01_general/sample_mapping_PCD01_ALL.csv')
 
-remove.list.swath <- readLines('../PCD01_SWATH/Stoller_library/remove.list.txt')
+samples <- sample_mapping_PCD01_ALL %>% select('Stoller_sample_ID', Condition, "D.amico.Risk.Score", Collection_Type, 'Age_.at_collection')
 
-samples <- samples[grep(remove.list.swath, samples$'Stoller_sample_ID', invert = T), ]
+remove.list <- paste(paste(MS_Sample_processing_LOG_Repeats$Stoller_Sample_ID,"$", sep = ""),sep = "|", collapse = "|")
+
+samples <- samples[grep(remove.list, samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("Pre_Diagnosis", invert = T, fixed = T, samples$Collection_Type), ]
+
+#samples <- samples[grep("Control_pool|Benign_pool_|Disease_pool_|QC", samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[grep("PCD01-B*", samples$'Stoller_sample_ID', invert = T), ]
+
+samples <- samples[complete.cases(samples$Condition), ]
 
 #Create dataframe
-two_conditions <- samples %>% select("D.amico.Risk.Score", Collection_Type)
-two_conditions <- two_conditions[ grep("At_Diagnosis", two_conditions$Collection_Type, invert = FALSE) , ]
+two_conditions <- samples %>% select("D.amico.Risk.Score", Condition)
+two_conditions <- two_conditions[ grep("PCA", two_conditions$Condition, invert = FALSE) , ]
 
 length(grep("HIGH", two_conditions$`D.amico.Risk.Score`))
 length(grep("INTERMEDIATE", two_conditions$`D.amico.Risk.Score`))
 length(grep("LOW", two_conditions$`D.amico.Risk.Score`))
-length(grep("NA", two_conditions$D))
+sum(is.na(samples$Collection_Type))
 
 ```
   + Input values into new data frame in relation to each variable, and the labels of the Pie Chart
@@ -488,9 +480,9 @@ length(grep("NA", two_conditions$D))
 
 ```{r}
 condition <- data.frame(
-  group = c("HIGH", "INTERMEDIATE", "LOW"),
-  value = c(45, 36, 14),
-  percentage = c("47% (44)", "38% (36)", "15% (14)")
+  group = c("HIGH", "INTERMEDIATE", "LOW", "NA"),
+  value = c(53, 40, 15, 35),
+  percentage = c("38% (53)", "28% (40)", "10% (15)", "24% (35)")
 )
 
 #visualise data
@@ -499,6 +491,7 @@ bp <- ggplot(condition, aes(x="", y=value, fill=group))+
 bp
 
 ```
+
 ```{r}
 #blanktheme
 blank_theme <- theme_minimal()+
@@ -508,7 +501,7 @@ blank_theme <- theme_minimal()+
     panel.border = element_blank(),
     panel.grid=element_blank(),
     axis.ticks = element_blank(),
-    plot.title=element_text(size=10, face="bold", hjust = 0),
+    plot.title=element_text(size=12, face="bold", hjust = 0.5),
     legend.title = element_blank()
   )
 
@@ -516,15 +509,11 @@ blank_theme <- theme_minimal()+
 pie <- bp + 
   coord_polar("y", start=0, direction = -1) +
   blank_theme +
-  ggtitle("Distribution of D'amico Risk Score's in samples collected at diagnosis") +
+  ggtitle("Distribution of D'amico Risk Score's in Prostate cancer samples") +
   theme(axis.text.x=element_blank()) +
-  scale_fill_manual(values=c("#fde0dd", "#c994c7", "#DD1C77")) +
+  scale_fill_manual(values=c("#8F003B", "#F2ACCA", "#DD1C77", "#989898"), labels=c("High", "Intermediate", "Low", "NA")) +
   geom_text(aes(label = percentage),position = position_stack(vjust = 0.5), fontface = "bold", color = "white", size=4)
 
 pie
 ```
-
-
 ```
-
-
